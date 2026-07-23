@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1хМолдСтавка — Ставки на спорт</title>
+    <style>
+        :root {
+            --bg-body: #0b0e14;
+            --bg-card: #151a23;
+            --bg-card-hover: #1c2330;
+            --accent-blue: #0088cc;
+            --accent-cyan: #00d2ff;
+            --accent-green: #00e676;
+            --accent-red: #ff3838;
+            --accent-gold: #ffd700;
+            --bg-gold-dark: #2a2000;
+            --text-main: #ffffff;
+            --text-muted: #8a99ad;
+            --border: #232d3f;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-body); color: var(--text-main); font-family: var(--font-family); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* ВСПЛЫВАЮЩЕЕ ОКНО СОГЛАШЕНИЯ */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: var(--bg-card); border: 1px solid var(--accent-red);
+            padding: 24px; border-radius: 16px; width: 90%; max-width: 400px;
+            text-align: center; box-shadow: 0 0 30px rgba(255, 56, 56, 0.3);
+        }
+        .modal-title { color: var(--accent-red); font-size: 20px; font-weight: 900; margin-bottom: 12px; text-transform: uppercase; }
+        .modal-text { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 20px; text-align: left; }
+        .modal-btn {
+            background: linear-gradient(135deg, var(--accent-red), #cc0000); color: #fff;
+            border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 800;
+            width: 100%; cursor: pointer; text-transform: uppercase;
+        }
+
+        /* HEADER */
+        header { background-color: var(--bg-card); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+        .brand { display: flex; align-items: center; gap: 6px; }
+        .brand-logo { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: #fff; font-weight: 900; padding: 4px 8px; border-radius: 6px; font-size: 16px; }
+        .brand-name { font-weight: 800; font-size: 18px; background: linear-gradient(90deg, #ffffff, var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .wallet-info { display: flex; align-items: center; gap: 10px; }
+        .balance-badge { background-color: rgba(0, 210, 255, 0.1); border: 1px solid rgba(0, 210, 255, 0.3); padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 14px; color: var(--accent-cyan); }
+        .bonus-btn { background: linear-gradient(135deg, var(--accent-green), #00b359); color: #000; border: none; padding: 6px 12px; border-radius: 20px; font-weight: 800; font-size: 12px; display: none; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* SPORTS CATEGORIES */
+        .sports-nav { display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto; background-color: var(--bg-body); border-bottom: 1px solid var(--border); scrollbar-width: none; }
+        .sports-nav::-webkit-scrollbar { display: none; }
+        .sport-chip { background-color: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 14px; border-radius: 18px; font-size: 13px; font-weight: 600; white-space: nowrap; transition: 0.2s; }
+        .sport-chip.active { background-color: var(--accent-blue); color: #fff; border-color: var(--accent-cyan); }
+        .sport-chip.gold { border-color: var(--accent-gold); color: var(--accent-gold); }
+        .sport-chip.gold.active { background-color: var(--accent-gold); color: #000; }
+
+        /* MAIN CONTENT AREA */
+        .content { flex: 1; overflow-y: auto; padding: 12px 16px 80px 16px; }
+        .tab-view { display: none; }
+        .tab-view.active { display: block; }
+
+        /* MATCH CARD */
+        .match-card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; transition: 0.2s; position: relative; overflow: hidden; }
+        .match-card:active { background-color: var(--bg-card-hover); }
+        
+        /* LEGENDARY MATCH STYLES */
+        .match-card.legendary { background: linear-gradient(145deg, #1a1600, var(--bg-gold-dark)); border: 1px solid var(--accent-gold); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
+        .match-card.legendary:active { background: linear-gradient(145deg, #241e00, #362900); }
+        .legendary-badge { background: linear-gradient(90deg, #ff8c00, var(--accent-gold)); color: #000; font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); letter-spacing: 1px; }
+
+        .match-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 11px; }
+        .live-tag { color: var(--accent-red); font-weight: 800; display: flex; align-items: center; gap: 4px; text-transform: uppercase; }
+        .live-dot { width: 6px; height: 6px; background-color: var(--accent-red); border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .match-timer { color: var(--text-muted); font-weight: 600; }
+        .teams-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; pointer-events: none; }
+        .team-name { font-size: 14px; font-weight: 700; width: 40%; line-height: 1.2; }
+        .legendary .team-name { color: var(--accent-gold); font-size: 15px; font-weight: 900; }
+        .team-name.right { text-align: right; }
+        .score-board { background-color: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 6px 12px; font-size: 18px; font-weight: 900; color: var(--accent-cyan); letter-spacing: 2px; }
+        .legendary .score-board { color: #fff; background-color: rgba(255, 215, 0, 0.2); border: 1px solid var(--accent-gold); }
+
+        /* ODDS BUTTONS */
+        .odds-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+        .odds-grid.two-col { grid-template-columns: repeat(2, 1fr); }
+        .odds-grid.one-col { grid-template-columns: 1fr; }
+        
+        .odd-btn { background-color: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 8px; padding: 8px; text-align: center; cursor: pointer; }
+        .odd-btn:active { background-color: var(--accent-blue); }
+        .legendary .odd-btn { border-color: rgba(255, 215, 0, 0.3); }
+        .legendary .odd-btn:active { background-color: rgba(255, 215, 0, 0.2); }
+        
+        .odd-btn.absurd-bet { background: linear-gradient(45deg, #2a0845, #6441A5); border: 1px solid #9d50bb; display: flex; justify-content: space-between; align-items: center; padding: 12px; }
+        .odd-btn.absurd-bet:active { filter: brightness(1.2); }
+        .absurd-title { font-size: 12px; font-weight: 700; color: #fff; text-align: left; }
+        .absurd-val { font-size: 16px; font-weight: 900; color: #00ffcc; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px; }
+
+        .odd-type { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+        .odd-val { font-size: 14px; font-weight: 800; color: #fff; }
+        .odds-section-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin: 16px 0 8px 0; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+        .legendary .odds-section-title { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+
+        /* MATCH DETAILS VIEW */
+        .back-btn { background: none; border: none; color: var(--accent-cyan); font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .legendary .back-btn { color: var(--accent-gold); }
+        .details-header { background-color: var(--bg-card); padding: 16px; border-radius: 12px; margin-bottom: 16px; text-align: center; border: 1px solid var(--border); }
+        .legendary .details-header { background: var(--bg-gold-dark); border-color: var(--accent-gold); }
+        .details-teams { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+        .legendary .details-teams { color: var(--accent-gold); }
+        .details-score { font-size: 24px; color: var(--accent-green); font-weight: 900; margin-bottom: 8px; }
+
+        /* BETSLIP VIEW */
+        .slip-card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+        .slip-card.legendary-slip { border-color: var(--accent-gold); background: linear-gradient(to right, var(--bg-card), var(--bg-gold-dark)); }
+        .slip-title { font-size: 14px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+        .legendary-slip .slip-title { color: var(--accent-gold); }
+        .slip-outcome { font-size: 14px; color: var(--accent-cyan); font-weight: 700; margin-bottom: 12px; }
+        .legendary-slip .slip-outcome { color: #fff; }
+        .bet-input { width: 100%; background-color: var(--bg-body); border: 1px solid var(--border); color: #fff; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 700; outline: none; margin-bottom: 12px; }
+        .submit-btn { width: 100%; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 800; cursor: pointer; }
+
+        /* BOTTOM NAVBAR */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background-color: var(--bg-card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 10px; font-weight: 600; cursor: pointer; width: 33%; position: relative; }
+        .nav-item.active { color: var(--accent-cyan); }
+        .badge-count { position: absolute; top: -2px; right: 28%; background-color: var(--accent-red); color: #fff; font-size: 9px; font-weight: 800; border-radius: 10px; padding: 2px 5px; }
+        .empty-state { text-align: center; color: var(--text-muted); padding: 40px 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <!-- МОДАЛЬНОЕ ОКНО "ДОГОВОР" -->
+    <div id="tosModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-title">⚠️ ВНИМАНИЕ!</div>
+            <div class="modal-text">
+                Нажимая кнопку ниже, я официально заявляю, что:
+                <br><br>
+                1. Мне уже исполнилось 18 лет.<br>
+                2. Я осознаю, что я лох и лудик.<br>
+                3. В случае, если я проебу все виртуальные бабки (или чудом выиграю), я <b>не имею и не буду иметь никаких претензий</b> к создателям и владельцам этого сайта.
+            </div>
+            <button class="modal-btn" onclick="acceptTOS()">Я согласен, погнали!</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="brand">
+            <span class="brand-logo">1x</span>
+            <span class="brand-name">МолдСтавка</span>
+        </div>
+        <div class="wallet-info">
+            <button id="bonusBtn" class="bonus-btn" onclick="claimBonus()">+1000₽ БОНУС</button>
+            <div class="balance-badge"><span id="balanceDisplay">5000.00</span> ₽</div>
+        </div>
+    </header>
+
+    <div class="sports-nav" id="sportsNav">
+        <div class="sport-chip active" onclick="filterSport(this, 'Все')">🔥 Все LIVE</div>
+        <div class="sport-chip gold" onclick="filterSport(this, 'UFS FIT')">🥊 UFS FIT</div>
+        <div class="sport-chip" onclick="filterSport(this, 'Футбол')">⚽ Футбол</div>
+        <div class="sport-chip" onclick="filterSport(this, 'Баскетбол')">🏀 Баскетбол</div>
+        <div class="sport-chip" onclick="filterSport(this, 'Теннис')">🎾 Теннис</div>
+    </div>
+
+    <div class="content" id="mainContent">
+        <div id="viewMatches" class="tab-view active">
+            <div id="matchesContainer"></div>
+        </div>
+
+        <div id="viewMatchDetails" class="tab-view">
+            <button class="back-btn" id="backBtn" onclick="backToMatches()">⬅ Назад к матчам</button>
+            <div id="detailsContainer"></div>
+        </div>
+
+        <div id="viewSlip" class="tab-view">
+            <div id="slipContainer">
+                <div class="empty-state">Купон пуст.<br>Выберите коэффициент, чтобы сделать ставку.</div>
+            </div>
+        </div>
+
+        <div id="viewBets" class="tab-view">
+            <div id="activeBetsContainer">
+                <div class="empty-state">Нет активных ставок.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" id="navMatches" onclick="switchTab('viewMatches', this)">
+            <span style="font-size: 18px;">⚡</span><span>Матчи</span>
+        </div>
+        <div class="nav-item" id="navSlip" onclick="switchTab('viewSlip', this)">
+            <span style="font-size: 18px;">📋</span><span>Купон</span>
+            <span id="slipBadge" class="badge-count" style="display:none;">1</span>
+        </div>
+        <div class="nav-item" id="navBets" onclick="switchTab('viewBets', this)">
+            <span style="font-size: 18px;">🎯</span><span>Мои Ставки</span>
+            <span id="betsBadge" class="badge-count" style="display:none;">0</span>
+        </div>
+    </div>
+
+<script>
+    function acceptTOS() {
+        document.getElementById('tosModal').style.display = 'none';
+    }
+
+    let balance = 5000.00;
+    const MATCH_DURATION = 900; 
+    let matches = [];
+    let activeBets = [];
+    let currentSlip = null;
+    let currentSportFilter = 'Все';
+    let viewedMatchId = null; 
+
+    const sports = [
+        { name: 'Футбол', type: '3way', scoreChance: 0.005, scoreStep: 1, baseTotal: 2.5 },
+        { name: 'Баскетбол', type: '2way', scoreChance: 0.08, scoreStep: [2, 3], baseTotal: 155.5 },
+        { name: 'Теннис', type: '2way', scoreChance: 0.04, scoreStep: 15, baseTotal: 20.5 }
+    ];
+
+    const teams = ['ФК Молдова', 'Динамо', 'Спарта', 'Шериф', 'Реал', 'Вардар', 'Атлетик', 'Юнайтед'];
+    function generateName(sport) {
+        return teams[Math.floor(Math.random() * teams.length)] + ' ' + Math.floor(Math.random()*99);
+    }
+
+    function createMatch(sportName = null) {
+        let sport = sportName ? sports.find(s => s.name === sportName) : sports[Math.floor(Math.random() * sports.length)];
+        return {
+            id: 'm_' + Math.random().toString(36).substr(2, 9),
+            sport: sport, team1: generateName(sport.name), team2: generateName(sport.name),
+            score1: 0, score2: 0, time: Math.floor(Math.random() * 50),
+            baseOdds: { w1: (1.4 + Math.random() * 1.6), x: sport.type === '3way' ? 3.0 : null, w2: (1.4 + Math.random() * 1.6) },
+            handicapParam: (Math.random() > 0.5 ? -1.5 : 1.5),
+            isLegendary: false
+        };
+    }
+
+    // Создаем легендарный бой UFS FIT
+    function createLegendaryFight() {
+        return {
+            id: 'leg_' + Math.random().toString(36).substr(2, 9),
+            sport: { name: 'UFS FIT', type: 'fight', scoreChance: 0, scoreStep: 1, baseTotal: 0 },
+            team1: 'Алексей Жнивин (ПСИХ)', team2: 'Сергей Воронцов (ВОЛК)',
+            score1: 0, score2: 0, time: 0,
+            baseOdds: { w1: 1.15, x: 35.0, w2: 4.80 },
+            isLegendary: true,
+            absurdBets: [
+                { id: 'abs1', title: 'Псих вырубит Волка нокаутом в 1 раунде', odd: 1.05, winChance: 0.95 },
+                { id: 'abs2', title: 'Псих выйдет в октагон с шаурмой', odd: 3.20, winChance: 0.30 },
+                { id: 'abs3', title: 'В октагон выбежит пьяный батя Волка', odd: 7.77, winChance: 0.15 },
+                { id: 'abs4', title: 'Волк укусит рефери за ногу', odd: 50.00, winChance: 0.05 },
+                { id: 'abs5', title: 'Оба бойца расплачутся и обнимутся', odd: 100.00, winChance: 0.01 }
+            ]
+        };
+    }
+
+    matches.push(createLegendaryFight());
+    for (let i = 0; i < 5; i++) matches.push(createMatch());
+
+    function updateMatches() {
+        matches.forEach(m => {
+            m.time += 1;
+            if (!m.isLegendary && Math.random() < m.sport.scoreChance) {
+                let step = Array.isArray(m.sport.scoreStep) ? m.sport.scoreStep[Math.floor(Math.random() * m.sport.scoreStep.length)] : m.sport.scoreStep;
+                if (Math.random() > 0.5) m.score1 += step; else m.score2 += step;
+            }
+        });
+
+        matches = matches.filter(m => {
+            if (m.time >= MATCH_DURATION) {
+                settleBets(m);
+                if (m.isLegendary) {
+                    matches.push(createLegendaryFight()); // Воскрешаем легенду
+                } else {
+                    matches.push(createMatch(m.sport.name));
+                }
+                if(viewedMatchId === m.id) backToMatches();
+                return false;
+            }
+            return true;
+        });
+    }
+
+    function calculateOdds(match) {
+        if (match.isLegendary) {
+            return {
+                w1: match.baseOdds.w1.toFixed(2), x: match.baseOdds.x.toFixed(2), w2: match.baseOdds.w2.toFixed(2)
+            };
+        }
+
+        let diff = match.score1 - match.score2;
+        let factor = match.sport.name === 'Баскетбол' ? 0.02 : 0.12;
+
+        let o1 = match.baseOdds.w1 * Math.exp(-diff * factor);
+        let o2 = match.baseOdds.w2 * Math.exp(diff * factor);
+        let ox = match.baseOdds.x ? match.baseOdds.x * Math.exp(Math.abs(diff) * factor * 0.5) : null;
+        let timeRatio = (MATCH_DURATION - match.time) / MATCH_DURATION;
+        
+        if (diff > 0) o1 = Math.max(1.01, o1 * (0.2 + 0.8 * timeRatio));
+        if (diff < 0) o2 = Math.max(1.01, o2 * (0.2 + 0.8 * timeRatio));
+
+        let currentTotal = match.score1 + match.score2;
+        let totalLine = match.sport.baseTotal + currentTotal; 
+        
+        return {
+            w1: Math.max(1.01, o1).toFixed(2), x: ox ? Math.max(1.01, ox).toFixed(2) : null, w2: Math.max(1.01, o2).toFixed(2),
+            totalLine: totalLine, tb: (1.85 + Math.random()*0.1).toFixed(2), tm: (1.85 + Math.random()*0.1).toFixed(2),
+            hParam1: match.handicapParam, h1: (1.9 + Math.random()*0.2).toFixed(2), hParam2: -match.handicapParam, h2: (1.9 + Math.random()*0.2).toFixed(2)
+        };
+    }
+
+    function formatTime(sec) {
+        let m = Math.floor(sec / 60); let s = sec % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function renderMatches() {
+        const container = document.getElementById('matchesContainer');
+        if (document.getElementById('viewMatches').classList.contains('active')) {
+            container.innerHTML = '';
+            
+            // Сортируем: легендарный бой всегда сверху
+            let filtered = currentSportFilter === 'Все' ? matches : matches.filter(m => m.sport.name === currentSportFilter);
+            filtered.sort((a, b) => (b.isLegendary ? 1 : 0) - (a.isLegendary ? 1 : 0));
+
+            filtered.forEach(m => {
+                let odds = calculateOdds(m);
+                let legClass = m.isLegendary ? 'legendary' : '';
+                let legBadge = m.isLegendary ? `<div class="legendary-badge">👑 ГЛАВНЫЙ БОЙ ВЕЧЕРА</div>` : '';
+                let scoreText = m.isLegendary ? 'VS' : `${m.score1} : ${m.score2}`;
+                
+                container.innerHTML += `
+                    <div class="match-card ${legClass}" onclick="openMatchDetails('${m.id}')">
+                        ${legBadge}
+                        <div class="match-header">
+                            <div class="live-tag"><span class="live-dot"></span> LIVE • ${m.sport.name}</div>
+                            <div class="match-timer">⏱ ${formatTime(m.time)}</div>
+                        </div>
+                        <div class="teams-container">
+                            <div class="team-name">${m.team1}</div>
+                            <div class="score-board">${scoreText}</div>
+                            <div class="team-name right">${m.team2}</div>
+                        </div>
+                        <div class="odds-grid">
+                            <div class="odd-btn" onclick="selectOdd(event, '${m.id}', '1x2', 'w1', ${odds.w1}, 'П1')">
+                                <div class="odd-type">П1</div><div class="odd-val">${odds.w1}</div>
+                            </div>
+                            ${odds.x ? `
+                            <div class="odd-btn" onclick="selectOdd(event, '${m.id}', '1x2', 'x', ${odds.x}, 'Ничья')">
+                                <div class="odd-type">Х</div><div class="odd-val">${odds.x}</div>
+                            </div>` : '<div></div>'}
+                            <div class="odd-btn" onclick="selectOdd(event, '${m.id}', '1x2', 'w2', ${odds.w2}, 'П2')">
+                                <div class="odd-type">П2</div><div class="odd-val">${odds.w2}</div>
+                            </div>
+                        </div>
+                        <div style="text-align:center; margin-top:8px; font-size:11px; color:var(--text-muted);">Нажмите для полной росписи 🔽</div>
+                    </div>
+                `;
+            });
+        }
+        
+        if (viewedMatchId && document.getElementById('viewMatchDetails').classList.contains('active')) {
+            renderMatchDetailsView(); 
+        }
+    }
+
+    function openMatchDetails(matchId) {
+        viewedMatchId = matchId;
+        document.getElementById('sportsNav').style.display = 'none';
+        
+        document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+        let detailsView = document.getElementById('viewMatchDetails');
+        detailsView.classList.add('active');
+        
+        let match = matches.find(x => x.id === viewedMatchId);
+        if(match && match.isLegendary) {
+            document.getElementById('mainContent').classList.add('legendary');
+        } else {
+            document.getElementById('mainContent').classList.remove('legendary');
+        }
+        
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        renderMatchDetailsView();
+    }
+
+    function backToMatches() {
+        viewedMatchId = null;
+        document.getElementById('mainContent').classList.remove('legendary');
+        document.getElementById('sportsNav').style.display = 'flex';
+        switchTab('viewMatches', document.getElementById('navMatches'));
+    }
+
+    function renderMatchDetailsView() {
+        const container = document.getElementById('detailsContainer');
+        let m = matches.find(x => x.id === viewedMatchId);
+        if (!m) return;
+        
+        let odds = calculateOdds(m);
+        let scoreText = m.isLegendary ? 'FIGHT' : `${m.score1} : ${m.score2}`;
+        
+        let html = `
+            <div class="details-header">
+                <div style="color:var(--accent-red); font-weight:800; font-size:12px; margin-bottom:5px;">LIVE • ${formatTime(m.time)}</div>
+                <div class="details-teams">${m.team1} - ${m.team2}</div>
+                <div class="details-score">${scoreText}</div>
+            </div>
+
+            <div class="odds-section-title">Победа в бою</div>
+            <div class="odds-grid">
+                <div class="odd-btn" onclick="selectOdd(event, '${m.id}', '1x2', 'w1', ${odds.w1}, 'Победа 1')">
+                    <div class="odd-type">П1</div><div class="odd-val">${odds.w1}</div>
+                </div>
+                ${odds.x ? `
+                <div class="odd-btn" onclick="selectOdd(event, '${m.id}', '1x2', 'x', ${odds.x}, 'Ничья')">
+                    <div class="odd-type">Ничья</div><div class="odd-val">${odds.x}</div>
+                </div>` : '<div></div>'}
+                <div class="odd-btn" onclick="selectOdd(event, '${m.id}', '1x2', 'w2', ${odds.w2}, 'Победа 2')">
+                    <div class="odd-type">П2</div><div class="odd-val">${odds.w2}</div>
+                </div>
+            </div>
+        `;
+
+        if (m.isLegendary) {
+            html += `<div class="odds-section-title">🔥 ЭКСКЛЮЗИВНЫЕ ТРЭШ-СТАВКИ 🔥</div><div class="odds-grid one-col">`;
+            m.absurdBets.forEach(bet => {
+                html += `
+                    <div class="odd-btn absurd-bet" onclick="selectOdd(event, '${m.id}', 'absurd', '${bet.id}', ${bet.odd.toFixed(2)}, '${bet.title}')">
+                        <div class="absurd-title">${bet.title}</div>
+                        <div class="absurd-val">${bet.odd.toFixed(2)}</div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+        } else {
+            // Обычный спорт (Тоталы, Форы)
+            html += `
+                <div class="odds-section-title">Тотал (${odds.totalLine})</div>
+                <div class="odds-grid two-col">
+                    <div class="odd-btn" onclick="selectOdd(event, '${m.id}', 'total_over', ${odds.totalLine}, ${odds.tb}, 'ТБ ${odds.totalLine}')">
+                        <div class="odd-type">Больше ${odds.totalLine}</div><div class="odd-val">${odds.tb}</div>
+                    </div>
+                    <div class="odd-btn" onclick="selectOdd(event, '${m.id}', 'total_under', ${odds.totalLine}, ${odds.tm}, 'ТМ ${odds.totalLine}')">
+                        <div class="odd-type">Меньше ${odds.totalLine}</div><div class="odd-val">${odds.tm}</div>
+                    </div>
+                </div>
+            `;
+            if (m.sport.name === 'Футбол') {
+                html += `
+                    <div class="odds-section-title">Точный счет (Популярное)</div>
+                    <div class="odds-grid">
+                        <div class="odd-btn" onclick="selectOdd(event, '${m.id}', 'exact', '1:0', 6.50, 'Счет 1:0')">
+                            <div class="odd-type">1:0</div><div class="odd-val">6.50</div>
+                        </div>
+                        <div class="odd-btn" onclick="selectOdd(event, '${m.id}', 'exact', '2:0', 8.20, 'Счет 2:0')">
+                            <div class="odd-type">2:0</div><div class="odd-val">8.20</div>
+                        </div>
+                        <div class="odd-btn" onclick="selectOdd(event, '${m.id}', 'exact', '2:1', 9.00, 'Счет 2:1')">
+                            <div class="odd-type">2:1</div><div class="odd-val">9.00</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        container.innerHTML = html;
+    }
+
+    function filterSport(element, sport) {
+        document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
+        element.classList.add('active');
+        currentSportFilter = sport;
+        renderMatches();
+    }
+
+    function switchTab(tabId, navEl) {
+        if(tabId !== 'viewMatchDetails') {
+            document.getElementById('mainContent').classList.remove('legendary');
+            document.getElementById('sportsNav').style.display = 'flex';
+            viewedMatchId = null;
+        }
+        document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        if(navEl) navEl.classList.add('active');
+        
+        if (tabId === 'viewMatches') renderMatches();
+    }
+
+    function selectOdd(e, matchId, type, param, oddValue, outcomeName) {
+        e.stopPropagation(); 
+        let match = matches.find(m => m.id === matchId);
+        currentSlip = { matchId, matchStr: `${match.team1} — ${match.team2}`, type, param, outcomeName, odd: oddValue, isLegendary: match.isLegendary };
+
+        document.getElementById('slipBadge').style.display = 'inline-block';
+        renderSlip();
+        switchTab('viewSlip', document.getElementById('navSlip'));
+    }
+
+    function renderSlip() {
+        const container = document.getElementById('slipContainer');
+        if (!currentSlip) {
+            container.innerHTML = `<div class="empty-state">Купон пуст.</div>`;
+            document.getElementById('slipBadge').style.display = 'none';
+            return;
+        }
+        let legClass = currentSlip.isLegendary ? 'legendary-slip' : '';
+        
+        container.innerHTML = `
+            <div class="slip-card ${legClass}">
+                <div class="slip-title">${currentSlip.matchStr}</div>
+                <div class="slip-outcome">Исход: ${currentSlip.outcomeName} (КФ ${currentSlip.odd})</div>
+                <input type="number" id="betAmountInput" class="bet-input" value="250" placeholder="Сумма (₽)">
+                <button class="submit-btn" onclick="placeBet()">ПОСТАВИТЬ СТАВКУ</button>
+            </div>
+        `;
+    }
+
+    function placeBet() {
+        if(!currentSlip) return;
+        let amount = parseFloat(document.getElementById('betAmountInput').value);
+
+        if (isNaN(amount) || amount <= 0) return alert("Введите сумму!");
+        if (amount > balance) return alert("Недостаточно бабок! Пополните счет (никак).");
+
+        balance -= amount;
+        activeBets.push({ ...currentSlip, amount: amount, potentialWin: (amount * currentSlip.odd).toFixed(2) });
+
+        currentSlip = null;
+        renderSlip();
+        renderActiveBets();
+        updateBalanceDisplay();
+        switchTab('viewBets', document.getElementById('navBets'));
+    }
+
+    function renderActiveBets() {
+        const container = document.getElementById('activeBetsContainer');
+        const badge = document.getElementById('betsBadge');
+
+        if(activeBets.length === 0) {
+            container.innerHTML = `<div class="empty-state">Нет активных ставок.</div>`;
+            badge.style.display = 'none';
+            return;
+        }
+
+        badge.innerText = activeBets.length;
+        badge.style.display = 'inline-block';
+        container.innerHTML = '';
+        activeBets.forEach(bet => {
+            let legClass = bet.isLegendary ? 'legendary-slip' : '';
+            container.innerHTML += `
+                <div class="slip-card ${legClass}">
+                    <div class="slip-title">${bet.matchStr}</div>
+                    <div style="font-size:13px; font-weight:700; margin-bottom:6px;">Исход: ${bet.outcomeName} (КФ ${bet.odd})</div>
+                    <div style="font-size:12px; color:var(--text-muted);">
+                        Ставка: ${bet.amount}₽ | Возможный выигрыш: <b style="color:var(--accent-green);">${bet.potentialWin}₽</b>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function settleBets(finishedMatch) {
+        let nextActiveBets = [];
+
+        activeBets.forEach(bet => {
+            if (bet.matchId === finishedMatch.id) {
+                let won = false;
+                
+                if (finishedMatch.isLegendary) {
+                    if (bet.type === '1x2') {
+                        // Псих (П1) побеждает в 90% случаев
+                        let winner = Math.random() < 0.90 ? 'w1' : (Math.random() < 0.5 ? 'w2' : 'x');
+                        if (bet.param === winner) won = true;
+                    } else if (bet.type === 'absurd') {
+                        // Рассчитываем абсурдную ставку
+                        let absurdBetDef = finishedMatch.absurdBets.find(b => b.id === bet.param);
+                        if (absurdBetDef && Math.random() < absurdBetDef.winChance) {
+                            won = true;
+                        }
+                    }
+                } else {
+                    let s1 = finishedMatch.score1;
+                    let s2 = finishedMatch.score2;
+                    
+                    if (bet.type === '1x2') {
+                        if (bet.param === 'w1' && s1 > s2) won = true;
+                        if (bet.param === 'w2' && s2 > s1) won = true;
+                        if (bet.param === 'x' && s1 === s2) won = true;
+                    } else if (bet.type === 'total_over') {
+                        if (s1 + s2 > bet.param) won = true;
+                    } else if (bet.type === 'total_under') {
+                        if (s1 + s2 < bet.param) won = true;
+                    } else if (bet.type === 'exact') {
+                        let p = bet.param.split(':');
+                        if (s1 == p[0] && s2 == p[1]) won = true;
+                    }
+                }
+
+                if (won) {
+                    balance += parseFloat(bet.potentialWin);
+                    // Небольшой пуш уведомления, если зашла дикая ставка
+                    if(parseFloat(bet.odd) > 5) alert(`🔥 ЗАШЛО! Выиграла ставка: ${bet.outcomeName}. Выигрыш: ${bet.potentialWin}₽`);
+                }
+            } else {
+                nextActiveBets.push(bet);
+            }
+        });
+
+        activeBets = nextActiveBets;
+        updateBalanceDisplay();
+        renderActiveBets();
+    }
+
+    function updateBalanceDisplay() {
+        document.getElementById('balanceDisplay').innerText = balance.toFixed(2);
+        const bonusBtn = document.getElementById('bonusBtn');
+        bonusBtn.style.display = (balance < 100 && activeBets.length === 0) ? 'block' : 'none';
+    }
+
+    function claimBonus() {
+        balance += 1000;
+        alert("Вам зачислен лудо-бонус 1000₽! Ставь на шаурму в октагоне!");
+        updateBalanceDisplay();
+    }
+
+    setInterval(() => {
+        updateMatches();
+        renderMatches();
+        updateBalanceDisplay();
+    }, 1000);
+
+    renderMatches();
+    updateBalanceDisplay();
+</script>
+</body>
+</html>
